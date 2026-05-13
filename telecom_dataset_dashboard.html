@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sales Performance Dashboard</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- SheetJS for Excel parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #ffffff;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --blue: #2563eb;
+      --green: #16a34a;
+      --red: #dc2626;
+      --yellow: #ca8a04;
+      --purple: #7c3aed;
+      --gray: #f3f4f6;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .page {
+      padding: 24px;
+      max-width: 1500px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+
+    .header h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+      color: #111827;
+    }
+
+    .header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .upload-box {
+      min-width: 320px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 12px;
+      padding: 14px;
+      background: #fafafa;
+    }
+
+    .upload-box label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      font-size: 13px;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #ffffff;
+    }
+
+    .filter-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    select,
+    button {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #ffffff;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 700;
+      background: #111827;
+      color: white;
+      border-color: #111827;
+    }
+
+    button:hover {
+      background: #374151;
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      background: var(--card);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .kpi-title {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: #111827;
+    }
+
+    .kpi-sub {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      background: var(--card);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .card h2 {
+      font-size: 16px;
+      margin: 0 0 4px;
+      color: #111827;
+    }
+
+    .card p {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0 0 14px;
+    }
+
+    .span-4 {
+      grid-column: span 4;
+    }
+
+    .span-6 {
+      grid-column: span 6;
+    }
+
+    .span-8 {
+      grid-column: span 8;
+    }
+
+    .span-12 {
+      grid-column: span 12;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 340px;
+    }
+
+    .small-chart {
+      height: 280px;
+    }
+
+    .heatmap {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .heatmap th,
+    .heatmap td {
+      border: 1px solid var(--border);
+      padding: 10px;
+      text-align: right;
+    }
+
+    .heatmap th:first-child,
+    .heatmap td:first-child {
+      text-align: left;
+      font-weight: 700;
+    }
+
+    .heatmap th {
+      background: #f9fafb;
+      color: #374151;
+    }
+
+    .insights {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .insight {
+      background: #f9fafb;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 13px;
+      color: #374151;
+    }
+
+    .insight strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #111827;
+    }
+
+    .empty-state {
+      border: 1px dashed #cbd5e1;
+      border-radius: 14px;
+      padding: 28px;
+      text-align: center;
+      color: var(--muted);
+      margin-top: 20px;
+      background: #fafafa;
+    }
+
+    @media (max-width: 1100px) {
+      .kpis {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .filters {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .span-4,
+      .span-6,
+      .span-8 {
+        grid-column: span 12;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .header {
+        flex-direction: column;
+      }
+
+      .upload-box {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .kpis,
+      .filters,
+      .insights {
+        grid-template-columns: 1fr;
+      }
+
+      .page {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <div class="header">
+      <div>
+        <h1>Sales Performance Dashboard</h1>
+        <p>
+          Upload the Excel dataset to automatically generate revenue, churn,
+          customer mix, and customer experience visuals.
+        </p>
+      </div>
+
+      <div class="upload-box">
+        <label for="excelFile">Upload Excel File</label>
+        <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" />
+      </div>
+    </div>
+
+    <div class="filters">
+      <div class="filter-group">
+        <label>Plan Type</label>
+        <select id="planFilter">
+          <option value="All">All</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Location</label>
+        <select id="locationFilter">
+          <option value="All">All</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Payment Method</label>
+        <select id="paymentFilter">
+          <option value="All">All</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Churn Status</label>
+        <select id="churnFilter">
+          <option value="All">All</option>
+          <option value="true">Churned</option>
+          <option value="false">Active</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Reset</label>
+        <button onclick="resetFilters()">Reset Filters</button>
+      </div>
+    </div>
+
+    <div id="emptyState" class="empty-state">
+      Upload your Excel file to generate the dashboard.
+      <br />
+      Expected fields include:
+      <strong>plan_type, location, monthly_revenue, monthly_fee_usd, data_usage_gb, customer_support_calls, network_quality_score, payment_method, churned</strong>.
+    </div>
+
+    <div id="dashboard" style="display:none;">
+      <div class="kpis">
+        <div class="kpi-card">
+          <div class="kpi-title">Customers</div>
+          <div class="kpi-value" id="kpiCustomers">-</div>
+          <div class="kpi-sub">Filtered customer count</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-title">Monthly Revenue</div>
+          <div class="kpi-value" id="kpiRevenue">-</div>
+          <div class="kpi-sub">Total recurring revenue</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-title">ARPU</div>
+          <div class="kpi-value" id="kpiArpu">-</div>
+          <div class="kpi-sub">Average revenue per user</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-title">Churn Rate</div>
+          <div class="kpi-value" id="kpiChurn">-</div>
+          <div class="kpi-sub">Share of churned users</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-title">Network Quality</div>
+          <div class="kpi-value" id="kpiQuality">-</div>
+          <div class="kpi-sub">Average quality score</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-title">Support Calls</div>
+          <div class="kpi-value" id="kpiSupport">-</div>
+          <div class="kpi-sub">Average calls per user</div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card span-6">
+          <h2>Revenue by Plan Type</h2>
+          <p>Identifies which plans contribute the most monthly revenue.</p>
+          <div class="chart-wrap">
+            <canvas id="revenueByPlanChart"></canvas>
+          </div>
+        </div>
+
+        <div class="card span-6">
+          <h2>Customer Mix by Plan and Location</h2>
+          <p>Shows customer concentration by geography and plan.</p>
+          <div class="chart-wrap">
+            <canvas id="customerMixChart"></canvas>
+          </div>
+        </div>
+
+        <div class="card span-6">
+          <h2>Churn Rate by Plan Type</h2>
+          <p>Highlights plan-level retention risk.</p>
+          <div class="chart-wrap">
+            <canvas id="churnByPlanChart"></canvas>
+          </div>
+        </div>
+
+        <div class="card span-6">
+          <h2>ARPU by Payment Method</h2>
+          <p>Compares monetization quality across payment methods.</p>
+          <div class="chart-wrap">
+            <canvas id="arpuByPaymentChart"></canvas>
+          </div>
+        </div>
+
+        <div class="card span-8">
+          <h2>Revenue vs. Monthly Fee</h2>
+          <p>Tests how strongly pricing explains customer revenue.</p>
+          <div class="chart-wrap">
+            <canvas id="scatterChart"></canvas>
+          </div>
+        </div>
+
+        <div class="card span-4">
+          <h2>Customer Experience</h2>
+          <p>Connects support burden, quality score, and churn risk.</p>
+          <div class="chart-wrap small-chart">
+            <canvas id="experienceChart"></canvas>
+          </div>
+        </div>
+
+        <div class="card span-12">
+          <h2>Churn Heatmap</h2>
+          <p>Compares churn risk across plan and location combinations.</p>
+          <div id="heatmapContainer"></div>
+        </div>
+
+        <div class="card span-12">
+          <h2>Auto-Generated Insights</h2>
+          <p>Key observations based on the currently selected filters.</p>
+          <div class="insights">
+            <div class="insight">
+              <strong>Top Revenue Plan</strong>
+              <span id="insightTopPlan">-</span>
+            </div>
+            <div class="insight">
+              <strong>Highest Churn Segment</strong>
+              <span id="insightHighChurn">-</span>
+            </div>
+            <div class="insight">
+              <strong>Best ARPU Payment Method</strong>
+              <span id="insightBestPayment">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let rawData = [];
+    let charts = {};
+
+    const requiredColumns = [
+      "plan_type",
+      "location",
+      "monthly_revenue",
+      "monthly_fee_usd",
+      "data_usage_gb",
+      "customer_support_calls",
+      "network_quality_score",
+      "payment_method",
+      "churned"
+    ];
+
+    document.getElementById("excelFile").addEventListener("change", handleFileUpload);
+
+    ["planFilter", "locationFilter", "paymentFilter", "churnFilter"].forEach(id => {
+      document.getElementById(id).addEventListener("change", updateDashboard);
+    });
+
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+
+        rawData = XLSX.utils.sheet_to_json(worksheet, {
+          defval: null,
+          raw: true
+        });
+
+        rawData = normalizeData(rawData);
+
+        const validation = validateColumns(rawData);
+        if (!validation.valid) {
+          alert("Missing required columns: " + validation.missing.join(", "));
+          return;
+        }
+
+        populateFilters(rawData);
+        document.getElementById("emptyState").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+        updateDashboard();
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
+    function normalizeData(data) {
+      return data.map(row => {
+        const normalized = {};
+
+        Object.keys(row).forEach(key => {
+          const cleanKey = String(key).trim().toLowerCase().replace(/\s+/g, "_");
+          normalized[cleanKey] = row[key];
+        });
+
+        return normalized;
+      });
+    }
+
+    function validateColumns(data) {
+      if (!data.length) return { valid: false, missing: requiredColumns };
+
+      const columns = Object.keys(data[0]);
+      const missing = requiredColumns.filter(col => !columns.includes(col));
+
+      return {
+        valid: missing.length === 0,
+        missing
+      };
+    }
+
+    function populateFilters(data) {
+      populateSelect("planFilter", uniqueValues(data, "plan_type"));
+      populateSelect("locationFilter", uniqueValues(data, "location"));
+      populateSelect("paymentFilter", uniqueValues(data, "payment_method"));
+    }
+
+    function populateSelect(id, values) {
+      const select = document.getElementById(id);
+      select.innerHTML = `<option value="All">All</option>`;
+
+      values.forEach(value => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
+      });
+    }
+
+    function uniqueValues(data, field) {
+      return [...new Set(data.map(d => d[field]).filter(Boolean))]
+        .sort((a, b) => String(a).localeCompare(String(b)));
+    }
+
+    function resetFilters() {
+      document.getElementById("planFilter").value = "All";
+      document.getElementById("locationFilter").value = "All";
+      document.getElementById("paymentFilter").value = "All";
+      document.getElementById("churnFilter").value = "All";
+      updateDashboard();
+    }
+
+    function getFilteredData() {
+      const plan = document.getElementById("planFilter").value;
+      const location = document.getElementById("locationFilter").value;
+      const payment = document.getElementById("paymentFilter").value;
+      const churn = document.getElementById("churnFilter").value;
+
+      return rawData.filter(row => {
+        const rowChurn = parseBoolean(row.churned);
+
+        return (
+          (plan === "All" || row.plan_type === plan) &&
+          (location === "All" || row.location === location) &&
+          (payment === "All" || row.payment_method === payment) &&
+          (churn === "All" || String(rowChurn) === churn)
+        );
+      });
+    }
+
+    function updateDashboard() {
+      const data = getFilteredData();
+
+      updateKpis(data);
+      updateCharts(data);
+      updateHeatmap(data);
+      updateInsights(data);
+    }
+
+    function updateKpis(data) {
+      const customers = data.length;
+      const revenue = sum(data, "monthly_revenue");
+      const arpu = customers ? revenue / customers : 0;
+      const churnRate = customers ? data.filter(d => parseBoolean(d.churned)).length / customers : 0;
+      const quality = avg(data, "network_quality_score");
+      const support = avg(data, "customer_support_calls");
+
+      document.getElementById("kpiCustomers").textContent = formatNumber(customers);
+      document.getElementById("kpiRevenue").textContent = formatCurrency(revenue);
+      document.getElementById("kpiArpu").textContent = formatCurrency(arpu);
+      document.getElementById("kpiChurn").textContent = formatPercent(churnRate);
+      document.getElementById("kpiQuality").textContent = quality.toFixed(1);
+      document.getElementById("kpiSupport").textContent = support.toFixed(1);
+    }
+
+    function updateCharts(data) {
+      createRevenueByPlanChart(data);
+      createCustomerMixChart(data);
+      createChurnByPlanChart(data);
+      createArpuByPaymentChart(data);
+      createScatterChart(data);
+      createExperienceChart(data);
+    }
+
+    function createRevenueByPlanChart(data) {
+      const grouped = groupBy(data, "plan_type", rows => sum(rows, "monthly_revenue"));
+      const sorted = sortEntriesDesc(grouped);
+
+      renderChart("revenueByPlanChart", {
+        type: "bar",
+        data: {
+          labels: sorted.map(d => d.key),
+          datasets: [{
+            label: "Monthly Revenue",
+            data: sorted.map(d => d.value),
+            backgroundColor: "#2563eb",
+            borderRadius: 8
+          }]
+        },
+        options: baseOptions({
+          yCurrency: true,
+          legend: false
+        })
+      });
+    }
+
+    function createCustomerMixChart(data) {
+      const plans = uniqueValues(data, "plan_type");
+      const locations = uniqueValues(data, "location");
+
+      const datasets = plans.map((plan, index) => ({
+        label: plan,
+        data: locations.map(location =>
+          data.filter(d => d.location === location && d.plan_type === plan).length
+        ),
+        backgroundColor: palette(index)
+      }));
+
+      renderChart("customerMixChart", {
+        type: "bar",
+        data: {
+          labels: locations,
+          datasets
+        },
+        options: {
+          ...baseOptions({ stacked: true }),
+          scales: {
+            x: { stacked: true, grid: { display: false } },
+            y: { stacked: true, beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function createChurnByPlanChart(data) {
+      const grouped = groupBy(data, "plan_type", rows => {
+        return rows.length ? rows.filter(r => parseBoolean(r.churned)).length / rows.length : 0;
+      });
+
+      const sorted = sortEntriesDesc(grouped);
+
+      renderChart("churnByPlanChart", {
+        type: "bar",
+        data: {
+          labels: sorted.map(d => d.key),
+          datasets: [{
+            label: "Churn Rate",
+            data: sorted.map(d => d.value),
+            backgroundColor: "#dc2626",
+            borderRadius: 8
+          }]
+        },
+        options: baseOptions({
+          yPercent: true,
+          legend: false
+        })
+      });
+    }
+
+    function createArpuByPaymentChart(data) {
+      const grouped = groupBy(data, "payment_method", rows => {
+        return rows.length ? sum(rows, "monthly_revenue") / rows.length : 0;
+      });
+
+      const sorted = sortEntriesDesc(grouped);
+
+      renderChart("arpuByPaymentChart", {
+        type: "doughnut",
+        data: {
+          labels: sorted.map(d => d.key),
+          datasets: [{
+            label: "ARPU",
+            data: sorted.map(d => d.value),
+            backgroundColor: sorted.map((_, i) => palette(i)),
+            borderColor: "#ffffff",
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "bottom"
+            },
+            tooltip: {
+              callbacks: {
+                label: ctx => `${ctx.label}: ${formatCurrency(ctx.raw)}`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function createScatterChart(data) {
+      const points = data.map(d => ({
+        x: toNumber(d.monthly_fee_usd),
+        y: toNumber(d.monthly_revenue)
+      }));
+
+      renderChart("scatterChart", {
+        type: "scatter",
+        data: {
+          datasets: [{
+            label: "Customer",
+            data: points,
+            backgroundColor: "rgba(37, 99, 235, 0.55)",
+            borderColor: "#2563eb",
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: "Monthly Fee USD"
+              },
+              ticks: {
+                callback: value => "$" + value
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: "Monthly Revenue"
+              },
+              ticks: {
+                callback: value => "$" + value
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: ctx => `Fee: ${formatCurrency(ctx.raw.x)}, Revenue: ${formatCurrency(ctx.raw.y)}`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function createExperienceChart(data) {
+      const active = data.filter(d => !parseBoolean(d.churned));
+      const churned = data.filter(d => parseBoolean(d.churned));
+
+      renderChart("experienceChart", {
+        type: "radar",
+        data: {
+          labels: ["Network Quality", "Low Support Calls", "Data Usage", "Tenure"],
+          datasets: [
+            {
+              label: "Active",
+              data: experienceScores(active),
+              backgroundColor: "rgba(22, 163, 74, 0.20)",
+              borderColor: "#16a34a",
+              pointBackgroundColor: "#16a34a"
+            },
+            {
+              label: "Churned",
+              data: experienceScores(churned),
+              backgroundColor: "rgba(220, 38, 38, 0.18)",
+              borderColor: "#dc2626",
+              pointBackgroundColor: "#dc2626"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              suggestedMin: 0,
+              suggestedMax: 100,
+              ticks: {
+                display: false
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              position: "bottom"
+            }
+          }
+        }
+      });
+    }
+
+    function updateHeatmap(data) {
+      const plans = uniqueValues(data, "plan_type");
+      const locations = uniqueValues(data, "location");
+
+      if (!plans.length || !locations.length) {
+        document.getElementById("heatmapContainer").innerHTML = "No data available.";
+        return;
+      }
+
+      let html = `<table class="heatmap"><thead><tr><th>Plan Type</th>`;
+
+      locations.forEach(location => {
+        html += `<th>${escapeHtml(location)}</th>`;
+      });
+
+      html += `</tr></thead><tbody>`;
+
+      plans.forEach(plan => {
+        html += `<tr><td>${escapeHtml(plan)}</td>`;
+
+        locations.forEach(location => {
+          const rows = data.filter(d => d.plan_type === plan && d.location === location);
+          const churnRate = rows.length
+            ? rows.filter(r => parseBoolean(r.churned)).length / rows.length
+            : 0;
+
+          html += `
+            <td style="background:${heatColor(churnRate)}; color:${churnRate > 0.35 ? "#ffffff" : "#111827"};">
+              ${rows.length ? formatPercent(churnRate) : "-"}
+            </td>
+          `;
+        });
+
+        html += `</tr>`;
+      });
+
+      html += `</tbody></table>`;
+
+      document.getElementById("heatmapContainer").innerHTML = html;
+    }
+
+    function updateInsights(data) {
+      const revenueByPlan = groupBy(data, "plan_type", rows => sum(rows, "monthly_revenue"));
+      const churnBySegment = groupBy(data, "location", rows => {
+        return rows.length ? rows.filter(r => parseBoolean(r.churned)).length / rows.length : 0;
+      });
+      const arpuByPayment = groupBy(data, "payment_method", rows => {
+        return rows.length ? sum(rows, "monthly_revenue") / rows.length : 0;
+      });
+
+      const topPlan = sortEntriesDesc(revenueByPlan)[0];
+      const highChurn = sortEntriesDesc(churnBySegment)[0];
+      const bestPayment = sortEntriesDesc(arpuByPayment)[0];
+
+      document.getElementById("insightTopPlan").textContent = topPlan
+        ? `${topPlan.key} leads with ${formatCurrency(topPlan.value)} in monthly revenue.`
+        : "-";
+
+      document.getElementById("insightHighChurn").textContent = highChurn
+        ? `${highChurn.key} has the highest churn rate at ${formatPercent(highChurn.value)}.`
+        : "-";
+
+      document.getElementById("insightBestPayment").textContent = bestPayment
+        ? `${bestPayment.key} has the strongest ARPU at ${formatCurrency(bestPayment.value)}.`
+        : "-";
+    }
+
+    function experienceScores(data) {
+      if (!data.length) return [0, 0, 0, 0];
+
+      const qualityScore = normalize(avg(data, "network_quality_score"), 1, 5);
+      const supportScore = 100 - normalize(avg(data, "customer_support_calls"), 0, 7);
+      const dataScore = normalize(avg(data, "data_usage_gb"), 0, 30);
+      const tenureScore = normalize(avg(data, "tenure_months"), 0, 120);
+
+      return [qualityScore, supportScore, dataScore, tenureScore];
+    }
+
+    function renderChart(canvasId, config) {
+      if (charts[canvasId]) {
+        charts[canvasId].destroy();
+      }
+
+      const ctx = document.getElementById(canvasId).getContext("2d");
+      charts[canvasId] = new Chart(ctx, config);
+    }
+
+    function baseOptions(options = {}) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            grid: {
+              display: false
+            }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: value => {
+                if (options.yCurrency) return "$" + Number(value).toLocaleString();
+                if (options.yPercent) return Math.round(value * 100) + "%";
+                return value;
+              }
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: options.legend !== false
+          },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                if (options.yCurrency) return `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`;
+                if (options.yPercent) return `${ctx.dataset.label}: ${formatPercent(ctx.raw)}`;
+                return `${ctx.dataset.label}: ${ctx.raw}`;
+              }
+            }
+          }
+        }
+      };
+    }
+
+    function groupBy(data, field, reducer) {
+      const map = {};
+
+      data.forEach(row => {
+        const key = row[field] || "Unknown";
+        if (!map[key]) map[key] = [];
+        map[key].push(row);
+      });
+
+      const result = {};
+      Object.keys(map).forEach(key => {
+        result[key] = reducer(map[key]);
+      });
+
+      return result;
+    }
+
+    function sortEntriesDesc(obj) {
+      return Object.entries(obj)
+        .map(([key, value]) => ({ key, value }))
+        .sort((a, b) => b.value - a.value);
+    }
+
+    function sum(data, field) {
+      return data.reduce((total, row) => total + toNumber(row[field]), 0);
+    }
+
+    function avg(data, field) {
+      return data.length ? sum(data, field) / data.length : 0;
+    }
+
+    function toNumber(value) {
+      if (value === null || value === undefined || value === "") return 0;
+      if (typeof value === "number") return value;
+
+      return Number(
+        String(value)
+          .replace(/[$,%]/g, "")
+          .replace(/,/g, "")
+          .trim()
+      ) || 0;
+    }
+
+    function parseBoolean(value) {
+      if (typeof value === "boolean") return value;
+
+      const text = String(value).trim().toLowerCase();
+      return ["true", "yes", "1", "churned"].includes(text);
+    }
+
+    function normalize(value, min, max) {
+      if (max === min) return 0;
+      return Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+    }
+
+    function formatCurrency(value) {
+      return "$" + Number(value || 0).toLocaleString(undefined, {
+        maximumFractionDigits: 0
+      });
+    }
+
+    function formatNumber(value) {
+      return Number(value || 0).toLocaleString();
+    }
+
+    function formatPercent(value) {
+      return (Number(value || 0) * 100).toFixed(1) + "%";
+    }
+
+    function palette(index) {
+      const colors = [
+        "#2563eb",
+        "#16a34a",
+        "#dc2626",
+        "#ca8a04",
+        "#7c3aed",
+        "#0891b2",
+        "#db2777",
+        "#4b5563"
+      ];
+
+      return colors[index % colors.length];
+    }
+
+    function heatColor(value) {
+      if (value >= 0.35) return "#dc2626";
+      if (value >= 0.25) return "#f97316";
+      if (value >= 0.15) return "#facc15";
+      return "#bbf7d0";
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
